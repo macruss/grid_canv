@@ -1,68 +1,90 @@
-class Pixel {
+class Cell {
   private x: number;
   private y: number;
-  private width: number;
-  private height: number;
+  private size: number;
   private color: string;
+  private grid: Grid;
 
   constructor(x: number, y: number, grid: Grid) {
-    this.width = this.height = grid.resolution;
-    this.color = 'white';
+    this.x = x;
+    this.y = y;
+    this.size = grid.cellSize;
+    this.color = 'black';
+    this.grid = grid;
+
+    this.draw();
   }
+  public draw(): void {
+    var ctx = grid.ctx
+      , x = this.x * this.size
+      , y = this.y * this.size
+      , size = this.size;
+
+    ctx.fillRect(x, y, size, size);
+  };
 }
 
 
 interface GridConfig {
   canvas: HTMLCanvasElement,
-  resolution?: number
+  cellSize?: number
 }
 class Grid {
-  private ctx: any;
   private width: number;
   private height: number;
-  private pixels: [Pixel];
+  private cells: Array<any>;
   private canvas: HTMLCanvasElement;
-  public resolution: number;
+  public ctx: any;
+  public cellSize: number;
 
   constructor(conf: GridConfig) {
     this.canvas = conf.canvas;
     this.ctx = conf.canvas.getContext('2d');
-    this.width = conf.canvas.width;
-    this.height = conf.canvas.height;
-    this.resolution = conf.resolution || 10;
+    this.cellSize = conf.cellSize || 10;
+    this.width = Math.floor( conf.canvas.width / this.cellSize );
+    this.height = Math.floor( conf.canvas.height / this.cellSize );
+    this.cells = new Array(this.width * this.height);
 
+    this.draw();
     // events
     this.canvas.onclick = (e) => this.canvasClick(e)
   }
 
   public draw(): void {
-    for (var x: number = 0.5; x < this.width; x += this.resolution) {
+    var width = this.width * this.cellSize
+      , height = this.height * this.cellSize;
+
+    for (var x = 0.5; x < width; x += this.cellSize) {
       this.ctx.moveTo(x, 0);
-      this.ctx.lineTo(x, this.height);
+      this.ctx.lineTo(x, height);
     }
 
-    for (var y: number = 0.5; y < this.height; y += this.resolution) {
+    for (var y = 0.5; y < height; y += this.cellSize) {
       this.ctx.moveTo(0, y);
-      this.ctx.lineTo(this.width, y);
+      this.ctx.lineTo(width, y);
     }
     this.ctx.strokeStyle = 'gray';
     this.ctx.stroke();
   }
 
-  private fillPixels(){
-    for (var x: number = 0.5; x < this.width; x += this.resolution) {
-      for (var y: number = 0.5; y < this.height; y += this.resolution) {
-        this.pixels.push(new Pixel(x, y, this))
-      }
-    }
+  private setCell(x, y){
+    this.cells[x + this.width * y] = new Cell(x, y, this);
   }
 
-  private findPixel(x, y) {
-    
+  private getCell(x, y) {
+    return this.cells[x + this.width * y];
   }
 
   private canvasClick(e) {
-    console.log(e);
+    var [x, y] = Grid.getVector(e.offsetX, e.offsetY, this.cellSize)
+    this.setCell(x, y);
+  }
+
+  static getVector(x: number, y: number, size: number): Array<number> {
+      return [
+          Math.floor(x / size),
+          Math.floor(y / size)
+      ];
   }
 
 }
@@ -75,7 +97,7 @@ canvas.height = window.innerHeight;
 
 var grid = new Grid({
   canvas: canvas,
-  resolution: 10,
+  cellSize: 10,
 });
 
-grid.draw();
+// grid.draw();

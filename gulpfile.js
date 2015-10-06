@@ -8,7 +8,8 @@ var stylus = require('gulp-stylus');
 gulp.task('webserver', function() {
   gulp.src('dist/')
     .pipe(server({
-      livereload: true
+      livereload: true,
+      port: 9080
     }));
 });
 
@@ -34,7 +35,7 @@ gulp.task('stylus', function () {
 
 
 gulp.task('default', function() {  
-  gulp.run('webserver');
+  gulp.run(['compile', 'templates', 'stylus', 'webserver']);
 
   gulp.watch('src/*.ts', ['compile']);
   gulp.watch('src/*.jade', ['templates']);
