@@ -3,13 +3,18 @@ html(lang="en")
 head
   meta(charset="UTF-8")
   link(rel="stylesheet", href="main.css")
+  link(rel="stylesheet", href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css")
   title Grid
 body
   .grid
     canvas(width="640px" height="480px")#canvas
       | Your browser is not capable of displaying HTML5 canvas components
   .controls
+    .actions
+      button(class="selected")#draw
+        i.fa.fa-pencil
+      button#move
+        i.fa.fa-hand-paper-o
     .colorpicker
-      label Color
-        input(type="color")#colorpicker
+      input(type="color")#colorpicker
   script(src="main.js")

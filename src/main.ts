@@ -36,25 +36,28 @@ class Cell {
 interface GridConfig {
   canvas: HTMLCanvasElement,
   scale?: number
+  ratio: Array<number>
 }
 class Grid {
-  private width  : number;
-  private height : number;
+  private wCells  : number;
+  private hCells : number;
   private cells  : Array<any>;
   private canvas : HTMLCanvasElement;
   private scale  : number;
   public ctx     : any;
   public cellSize: number;
+  public mode    : string;
 
   constructor(conf: GridConfig) {
     this.canvas   = conf.canvas;
     this.ctx      = conf.canvas.getContext('2d');
     this.scale    = conf.scale;
     this.cellSize = Math.floor(this.scale * 5);
-    this.width    = toRelativeUnit(conf.canvas.width, this.cellSize);
-    this.height   = toRelativeUnit(conf.canvas.height, this.cellSize);
+    this.wCells   = conf.ratio[0];
+    this.hCells   = conf.ratio[1];
+    this.mode     = 'draw';
 
-    this.cells    = new Array(this.width * this.height);
+    this.cells    = new Array(this.wCells * this.hCells);
 
     this.draw();
 
@@ -64,23 +67,28 @@ class Grid {
     this.canvas.onmousewheel = (e) => this.handleScroll(e)
   }
 
+  static transformedPoint(x: number, y: number) {
+    return {x:x, y:y}
+  }
+
   private draw(): void {
-    var width  = this.canvas.width 
-      , height = this.canvas.height
+    var width  = toPixel(this.wCells, this.cellSize)
+      , height = toPixel(this.hCells, this.cellSize)
       , size   = this.cellSize
       , x, y;
 
     this.ctx.beginPath();
 
-    for (x = size + 0.5; x < width; x += size) {
+    for (x = size + 0.5; x < width + size; x += size) {
       this.ctx.moveTo(x, 0);
       this.ctx.lineTo(x, height);
     }
 
-    for (y = size + 0.5; y < height; y += size) {
+    for (y = size + 0.5; y < height + size; y += size) {
       this.ctx.moveTo(0, y);
       this.ctx.lineTo(width, y);
     }
+
     this.ctx.strokeStyle = 'lightgray';
     this.ctx.stroke();
 
@@ -90,17 +98,17 @@ class Grid {
   }
 
   private setCell(x, y, color) {
-    if (!this.cells[x + this.width * y]) {
-      this.cells[x + this.width * y] = new Cell(x, y, color, this);
+    if (!this.cells[x + this.wCells * y]) {
+      this.cells[x + this.wCells * y] = new Cell(x, y, color, this);
     } else {
-        this.cells[x + this.width * y].setColor(color)
+        this.cells[x + this.wCells * y].setColor(color)
     }
   this.redraw();
 
   }
 
   private getCell(x, y) {
-    return this.cells[x + this.width * y];
+    return this.cells[x + this.wCells * y];
   }
 
   public setScale(scale: number) {
@@ -122,11 +130,21 @@ class Grid {
     this.draw();
   }
 
+  private inGrid(x, y): boolean {
+    return x < this.wCells && y < this.hCells
+  }
+
   // event hendlers
   private handleClick(e) {
-    var x = toRelativeUnit(e.offsetX, this.cellSize)
-      , y = toRelativeUnit(e.offsetY, this.cellSize);
-    this.setCell(x, y, colorpicker.value);
+    var x, y;
+
+    x = toRelativeUnit(e.offsetX, this.cellSize);
+    y = toRelativeUnit(e.offsetY, this.cellSize);
+
+    if (this.inGrid(x, y)) {
+      this.setCell(x, y, colorpicker.value);
+    }
+    return e.preventDefault() && false;
   }
 
   private handleMouseMove(e) {
@@ -149,8 +167,37 @@ class Grid {
 
 var canvas = <HTMLCanvasElement>document.querySelector("#canvas");
 var colorpicker = <HTMLInputElement>document.querySelector("#colorpicker");
+var $btns = <any>document.querySelectorAll(".actions button");
 
 var grid = new Grid({
   canvas: canvas,
-  scale: 2,
+  ratio: [50, 50],
+  scale: 1.5,
+
 });
+
+Array.prototype.forEach.call($btns, (el) => { 
+  el.addEventListener('click', handleClickActionsBtn) 
+});
+
+
+function handleClickActionsBtn (e) {
+  grid.mode = e.currentTarget.id;
+  if (!hasClass(e.currentTarget, 'selected')) {
+    toggleClass($btns, 'selected');
+  }
+}
+
+function toggleClass(elements: Array<HTMLElement>, cls: string) {
+  Array.prototype.forEach.call(elements, (el) => {
+    if ( hasClass(el, cls) ) {
+      el.classList.remove(cls);
+    } else {
+      el.classList.add(cls);
+    }
+  });
+}
+
+function hasClass(el: HTMLElement, cls: string): boolean {
+  return  Array.prototype.indexOf.call(el.classList, cls) > -1
+}
