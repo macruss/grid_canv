@@ -5,6 +5,11 @@ head
   link(rel="stylesheet", href="main.css")
   title Grid
 body
-  canvas(width="640px" height="480px")#canvas
-    | Your browser is not capable of displaying HTML5 canvas components
+  .grid
+    canvas(width="640px" height="480px")#canvas
+      | Your browser is not capable of displaying HTML5 canvas components
+  .controls
+    .colorpicker
+      label Color
+        input(type="color")#colorpicker
   script(src="main.js")
