@@ -48,14 +48,14 @@ class Grid {
   public cellSize: number;
   public mode    : string;
   private zp     : { x: number, y: number };
-  private dragStart: any;
+  private moveStart: any;
 
 
   constructor(conf: GridConfig) {
     this.canvas   = conf.canvas;
     this.ctx      = conf.canvas.getContext('2d');
     this.scale    = conf.scale;
-    this.cellSize = Math.floor(this.scale * 5);
+    this.cellSize = Math.round(this.scale * 5);
     this.wCells   = conf.ratio[0];
     this.hCells   = conf.ratio[1];
     this.zp       = {x: 0, y: 0};
@@ -116,26 +116,37 @@ class Grid {
   }
 
   public zoom(pt, zoomDirection: boolean) {
-    let delta = zoomDirection ? 0.25 : -0.25;
+    // console.log(zoomDireflfffsdaction);
+    let delta = zoomDirection ? 1.25 : .8;
 
-    this.scale += delta
-    this.scale = Math.max(1, this.scale);
-    this.cellSize = Math.floor(this.scale * 5);
-    this.redraw();
+    // console.log(Math.round((pt.x - this.zp.x) * (1 - delta)));
+    let oldSize = this.cellSize;
+
+    this.scale = Math.max(1, this.scale * delta);
+    this.cellSize = Math.round(this.scale * 5);
+
+    if ( this.scale >= 1 ) {
+      this.moveStart = true;
+      // console.log(this.cellSize / oldSize);
+      this.move(
+        Math.round((pt.x - this.zp.x) * (1 - this.cellSize / oldSize)), 
+        Math.round((pt.y - this.zp.y) * (1 - this.cellSize / oldSize))
+      );
+      this.moveStart = null;
+    }
+    // this.zp.x /= delta;
+    // this.zp.y /= delta;
+
+    // this.redraw();
   }
 
-  public drag(e) {
-    if (this.dragStart) {
-      // console.log(e.offsetX - this.dragStart.x, e.offsetY - this.dragStart.y);
-      // this.zp.x += e.offsetX - this.dragStart.x;
-      // this.zp.y += e.offsetY - this.dragStart.y;
-      this.zp.x += e.movementX;
-      this.zp.y += e.movementY;
-      // console.log(this.zp);
+  public move(x, y) {
+    if (this.moveStart) {
+      this.zp.x += x;
+      this.zp.y += y;
       this.clearGrid();
-      this.ctx.translate(e.movementX, e.movementY);
-      // console.log(e);
-      this.redraw()
+      this.ctx.translate(x, y);
+      this.redraw();
     }
 
   }
@@ -172,7 +183,7 @@ class Grid {
         this.setCell(x, y, colorpicker.value);
       }
     } else {
-        this.dragStart = null;
+        this.moveStart = null;
     }
 
     return e.preventDefault() && false;
@@ -180,7 +191,7 @@ class Grid {
 
   private handleMouseDown(e) {
     if (this.mode === 'move') {
-      this.dragStart = { x: e.offsetX, y: e.offsetY };
+      this.moveStart = { x: e.offsetX, y: e.offsetY };
     }
   }
 
@@ -190,7 +201,7 @@ class Grid {
         this.handleMouseUp(e);
       } else {
 
-        this.drag(e);
+        this.move(e.movementX, e.movementY);
       }
 
     }
@@ -214,7 +225,7 @@ var $btns = <any>document.querySelectorAll(".actions button");
 var grid = new Grid({
   canvas: canvas,
   ratio: [70, 60],
-  scale: 1.5,
+  scale: 2,
 
 });
 
@@ -223,22 +234,38 @@ Array.prototype.forEach.call($btns, (el) => {
 });
 
 document.addEventListener('keyup', function(e) {
-  e.preventDefault();
-  if (e.altKey && e.ctrlKey) {
-      if (e.which === 68) { 
+    e.preventDefault();
+    // console.log(e.which);
+    if ( e.which === 17 ) {
         grid.mode = 'draw';
         canvas.style.cursor = 'default';
         $btns[0].classList.add('selected');
         $btns[1].classList.remove('selected');
-      }
-      if (e.which === 77) {
+    }
+    if ( e.altKey && e.ctrlKey ) {
+        if (e.which === 68 || e.which === 17) {
+            grid.mode = 'draw';
+            canvas.style.cursor = 'default';
+            $btns[0].classList.add('selected');
+            $btns[1].classList.remove('selected');
+        }
+        if ( e.which === 77 ) {
+            grid.mode = 'move';
+            canvas.style.cursor = 'move';
+            $btns[1].classList.add('selected');
+            $btns[0].classList.remove('selected');
+        }
+    }
+});
+
+document.addEventListener('keydown', function(e) { 
+    if ( e.ctrlKey ) {
         grid.mode = 'move';
         canvas.style.cursor = 'move';
         $btns[1].classList.add('selected');
         $btns[0].classList.remove('selected');
-      }
-  }
-})
+    }
+});
 
 
 function handleClickActionsBtn (e) {
