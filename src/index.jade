@@ -4,17 +4,31 @@ head
   meta(charset="UTF-8")
   link(rel="stylesheet", href="main.css")
   link(rel="stylesheet", href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css")
+  link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.5/css/bootstrap.min.css")
   title Grid
 body
   .grid
-    canvas(width="640px" height="480px")#canvas
+    canvas(width="800px" height="600px")#canvas
       | Your browser is not capable of displaying HTML5 canvas components
   .controls
-    .actions
-      button(class="selected" title="Draw (Ctrl+Alt+D)")#draw
+    .actions.btn-group-vertical
+      button.btn.selected(title="Draw (Ctrl+Alt+D)")#draw
         i.fa.fa-pencil
-      button(title="Move (Ctrl+Alt+M)")#move
+      button.btn(title="Move (Ctrl+Alt+M)")#move
         i.fa.fa-hand-paper-o
-    .colorpicker
-      input(type="color")#colorpicker
+      input.btn(type="color")#colorpicker
+    //- .colorpicker
+  .config
+    .form-group
+      label Resolution
+      .input-group
+        span.input-group-addon W
+        input.form-control(value="50")#width
+      .input-group
+        span.input-group-addon H
+        input.form-control(value="50")#height
+    .form-group
+      label Scale
+      input.form-control(value="2")#scale
+    button.btn.btn-primary#reset reset
   script(src="main.js")

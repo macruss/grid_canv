@@ -3,7 +3,7 @@ body
   padding 0
 .grid
   display inline-block
-  width 700px 
+  width 900px 
   #canvas
     display block
     margin 20px
@@ -12,21 +12,24 @@ body
     // cursor default
     cursor default
 .controls
+.config
   display inline-block
   vertical-align top
   width 100px
+  margin-top 30px
+  .input-group
+    margin-bottom 10px
   .colorpicker
+  .actions
     input
       background #ccc
-      height 30px
-  .actions
-    margin-top 30px
+      height 40px
     button
       display block
       width 50px
       height 30px
       background #ccc
-      border 1px solid #aaa
+      // border 1px solid #aaa
       outline none
       &:first-child
         border-bottom 0px
