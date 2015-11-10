@@ -5,23 +5,42 @@ var toPixel = (n: number, ratio: number): number => {
         return n * ratio;
 }
 
+class Point {
+    public x: number;
+    public y: number;
+
+    constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+    }
+
+    toRelativeUnit(ratio) {
+        return { 
+            x: Math.floor(this.x / ratio), 
+            y: Math.floor(this.y / ratio)
+        };
+    }
+}
+
 class Cell {
-    private x: number;
-    private y: number;
-    private color: string;
-    private grid: Grid;
+    private x     : number;
+    private y     : number;
+    private color : string;
+    private grid  : Grid;
 
     constructor(x:number, y:number, color: string, grid: Grid) {
         this.x     = x;
         this.y     = y;
         this.color = color;
         this.grid  = grid;
+
+        this.draw();
     }
     public draw(): void {
-        var ctx  = grid.ctx
-            , size = grid.cellSize
-            , x    = toPixel(this.x, size) + 1
-            , y    = toPixel(this.y, size) + 1;
+        var ctx  = grid.ctx,
+          size = grid.cellSize,
+          x    = toPixel(this.x, size) + 1,
+          y    = toPixel(this.y, size) + 1;
 
         ctx.fillStyle = this.color;
         ctx.fillRect(x, y, size - 1, size - 1);
@@ -34,22 +53,22 @@ class Cell {
 
 
 interface GridConfig {
-    canvas: HTMLCanvasElement,
-    scale?: number
-    ratio: Array<number>
+    canvas : HTMLCanvasElement,
+    scale? : number
+    ratio  : Array<number>
 }
 class Grid {
-    private wCells : number;
-    private hCells : number;
-    private cells  : Array<any>;
-    private canvas : HTMLCanvasElement;
-    private scale  : number;
-    public ctx     : any;
-    public cellSize: number;
-    public mode    : string;
-    private zp     : { x: number, y: number };
-    private moveStart: any;
-    private events: any;
+    private wCells    : number;
+    private hCells    : number;
+    private cells     : Array<any>;
+    private canvas    : HTMLCanvasElement;
+    private scale     : number;
+    private zp        : { x: number, y: number };
+    private moveStart : any;
+    private events    : any;
+    public ctx        : any;
+    public cellSize   : number;
+    public mode       : string;
 
 
     constructor(conf: GridConfig) {
@@ -59,62 +78,74 @@ class Grid {
         this.cellSize = Math.round(this.scale * 5);
         this.wCells   = conf.ratio[0];
         this.hCells   = conf.ratio[1];
-        this.zp       = {x: 0, y: 0};   // zero point - begin of ctx
+        this.zp       = new Point(0, 0);   // zero point - begin of ctx
         this.mode     = 'draw';
-
         this.cells    = new Array(this.wCells * this.hCells);
         this.events   = {
-            mouseup: (e) => this.handleMouseUp(e),
-            mousedown: (e) => this.handleMouseDown(e),
-            mousemove: (e) => this.handleMouseMove(e),
-            mousewheel: (e) => this.handleScroll(e)
+            mouseup    : (e) => this.handleMouseUp(e),
+            mousedown  : (e) => this.handleMouseDown(e),
+            mousemove  : (e) => this.handleMouseMove(e),
+            mousewheel : (e) => this.handleScroll(e)
         }
 
         this.draw();
 
-        // events
+        // setup events
         for (let e in this.events) {
             this.canvas.addEventListener(e, this.events[e]);
         }
     }
 
-    static transformedPoint(x: number, y: number) {
-        return {x:x, y:y}
-    }
-
     private draw(): void {
-        var width  = toPixel(this.wCells, this.cellSize)
-            , height = toPixel(this.hCells, this.cellSize)
-            , size   = this.cellSize
-            , x, y;
+        var size       = this.cellSize,
+            gridWidth  = toPixel(this.wCells, size),
+            gridHeight = toPixel(this.hCells, size),
+            zp         = this.zp,
+            ctx        = this.ctx,
+            begin      = new Point(
+                Math.max(0, zp.x % size - zp.x - size),
+                Math.max(0, zp.y % size - zp.y - size)
+            ),
+            end        = new Point(
+                Math.min(this.canvas.width - zp.x, gridWidth),
+                Math.min(this.canvas.height - zp.y, gridHeight)
+            ),
+            _begin     = begin.toRelativeUnit(size),
+            _end       = end.toRelativeUnit(size);
 
-        this.ctx.beginPath();
 
-        for (x = 0.5; x < width + size; x += size) {
-            this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, height);
+        ctx.beginPath();
+
+        for (let x = begin.x + 0.5; x <= end.x + 1; x += size) {
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, end.y);
         }
 
-        for (y = 0.5; y < height + size; y += size) {
-            this.ctx.moveTo(0, y);
-            this.ctx.lineTo(width, y);
+        for (let y = begin.y + 0.5; y <= end.y + 1; y += size) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(end.x, y);
         }
 
-        this.ctx.strokeStyle = 'lightgray';
-        this.ctx.stroke();
+        ctx.strokeStyle = 'lightgray';
+        ctx.stroke();
 
-        this.cells.forEach((cell) => {
-            if (cell) cell.draw();
-        });
+        for (let x = _begin.x; x <= _end.x; x++) {
+            for (let y = _begin.y; y <= _end.y; y++) {
+                let cell = this.cells[x + this.wCells * y];
+
+                if (cell) cell.draw();
+            }
+        }
     }
 
     private setCell(x, y, color) {
-        if (!this.cells[x + this.wCells * y]) {
-            this.cells[x + this.wCells * y] = new Cell(x, y, color, this);
+        var i = x + this.wCells * y;
+
+        if (!this.cells[i]) {
+            this.cells[i] = new Cell(x, y, color, this);
         } else {
-                this.cells[x + this.wCells * y].setColor(color)
+            this.cells[i].setColor(color)
         }
-        this.redraw();
     }
 
     private getCell(x, y) {
@@ -129,10 +160,12 @@ class Grid {
         this.cellSize = Math.round(this.scale * 5);
 
         if ( this.scale >= 1 ) {
+            let k = 1 - this.cellSize / oldSize;
+
             this.moveStart = true;
             this.move(
-                Math.round((pt.x - this.zp.x) * (1 - this.cellSize / oldSize)), 
-                Math.round((pt.y - this.zp.y) * (1 - this.cellSize / oldSize))
+                Math.round((pt.x - this.zp.x) * k), 
+                Math.round((pt.y - this.zp.y) * k)
             );
             this.moveStart = null;
         }
@@ -148,7 +181,6 @@ class Grid {
             this.ctx.translate(x, y);
             this.redraw();
         }
-
     }
 
     public getScale() {
@@ -156,7 +188,10 @@ class Grid {
     }
 
     private clearGrid() {
-        this.ctx.clearRect(0 - this.zp.x, 0 - this.zp.y, this.canvas.width, this.canvas.height);
+        let begin = new Point(0 - this.zp.x, 0 - this.zp.y),
+            end   = new Point(this.canvas.width, this.canvas.height);
+
+        this.ctx.clearRect(begin.x, begin.y, end.x, end.y);
     }
 
     private redraw() {
@@ -173,17 +208,15 @@ class Grid {
 
     // event hendlers
     private handleMouseUp(e) {
-        var x, y;
-
         if (this.mode === 'draw') {
-            x = toRelativeUnit(e.offsetX - this.zp.x, this.cellSize);
-            y = toRelativeUnit(e.offsetY - this.zp.y, this.cellSize);
+            let x = toRelativeUnit(e.offsetX - this.zp.x, this.cellSize),
+                y = toRelativeUnit(e.offsetY - this.zp.y, this.cellSize);
 
             if (this.inGrid(x, y)) {
-                this.setCell(x, y, colorpicker.value);
+                this.setCell(x, y, $colorpicker.value);
             }
         } else {
-                this.moveStart = null;
+            this.moveStart = null;
         }
 
         return e.preventDefault() && false;
@@ -200,7 +233,6 @@ class Grid {
             if (this.mode === 'draw') {
                 this.handleMouseUp(e);
             } else {
-
                 this.move(e.movementX, e.movementY);
             }
 
@@ -243,14 +275,14 @@ class Grid {
 }
 
 
-var canvas      = <HTMLCanvasElement>document.querySelector("#canvas");
-var colorpicker = <HTMLInputElement>document.querySelector("#colorpicker");
-var $btns       = <any>document.querySelectorAll(".actions button");
-var $config     = <any>document.querySelectorAll(".config input");
-var $resetBtn  = <any>document.querySelector("#reset");
+var $canvas      = <HTMLCanvasElement>document.querySelector("#canvas");
+var $colorpicker = <HTMLInputElement>document.querySelector("#colorpicker");
+var $btns        = <any>document.querySelectorAll(".actions button");
+var $config      = <any>document.querySelectorAll(".config input");
+var $resetBtn    = <any>document.querySelector("#reset");
 
 var grid = new Grid({
-    canvas: canvas,
+    canvas: $canvas,
     ratio: [
         +$config[0].value,
         +$config[1].value
@@ -279,20 +311,20 @@ document.addEventListener('keyup', (e) => {
     // console.log(e.which);
     if ( e.which === 17 ) {
         grid.mode = 'draw';
-        canvas.style.cursor = 'default';
+        $canvas.style.cursor = 'default';
         $btns[0].classList.add('selected');
         $btns[1].classList.remove('selected');
     }
     if ( e.altKey && e.ctrlKey ) {
         if (e.which === 68 || e.which === 17) {
                 grid.mode = 'draw';
-            canvas.style.cursor = 'default';
+            $canvas.style.cursor = 'default';
             $btns[0].classList.add('selected');
             $btns[1].classList.remove('selected');
         }
         if ( e.which === 77 ) {
             grid.mode = 'move';
-            canvas.style.cursor = 'move';
+            $canvas.style.cursor = 'move';
             $btns[1].classList.add('selected');
             $btns[0].classList.remove('selected');
         }
@@ -302,7 +334,7 @@ document.addEventListener('keyup', (e) => {
 document.addEventListener('keydown', (e) => { 
     if ( e.ctrlKey ) {
         grid.mode = 'move';
-        canvas.style.cursor = 'move';
+        $canvas.style.cursor = 'move';
         $btns[1].classList.add('selected');
         $btns[0].classList.remove('selected');
     }
