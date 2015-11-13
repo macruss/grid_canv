@@ -8,27 +8,28 @@ head
   title Grid
 body
   .grid
-    canvas(width="800px" height="600px")#canvas
+    canvas#canvas
       | Your browser is not capable of displaying HTML5 canvas components
-  .controls
-    .actions.btn-group-vertical
-      button.btn.selected(title="Draw (Ctrl+Alt+D)")#draw
-        i.fa.fa-pencil
-      button.btn(title="Move (Ctrl+Alt+M)")#move
-        i.fa.fa-hand-paper-o
-      input.btn(type="color")#colorpicker
-    //- .colorpicker
-  .config
-    .form-group
-      label Resolution
-      .input-group
-        span.input-group-addon W
-        input.form-control(value="50")#width
-      .input-group
-        span.input-group-addon H
-        input.form-control(value="50")#height
-    .form-group
-      label Scale
-      input.form-control(value="2")#scale
-    button.btn.btn-primary#reset reset
+  .left-block
+    .controls
+      .actions.btn-group-vertical
+        button.btn.selected(title="Draw (Ctrl+Alt+D)")#draw
+          i.fa.fa-pencil
+        button.btn(title="Move (Ctrl+Alt+M)")#move
+          i.fa.fa-hand-paper-o
+        input.btn(type="color")#colorpicker
+      //- .colorpicker
+    .config
+      .form-group
+        label Resolution
+        .input-group
+          span.input-group-addon W
+          input.form-control(value="300")#width
+        .input-group
+          span.input-group-addon H
+          input.form-control(value="300")#height
+      .form-group
+        label Scale
+        input.form-control(value="2")#scale
+      button.btn.btn-primary#reset reset
   script(src="main.js")

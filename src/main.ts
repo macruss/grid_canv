@@ -188,13 +188,13 @@ class Grid {
     }
 
     private clearGrid() {
-        let begin = new Point(0 - this.zp.x, 0 - this.zp.y),
+        let begin = new Point(0 - this.zp.x,0 - this.zp.y),
             end   = new Point(this.canvas.width, this.canvas.height);
 
         this.ctx.clearRect(begin.x, begin.y, end.x, end.y);
     }
 
-    private redraw() {
+    public redraw() {
         this.clearGrid();
         this.draw();
     }
@@ -204,6 +204,41 @@ class Grid {
                x < this.wCells && 
                y >= 0 && 
                y < this.hCells
+    }
+
+    public resize(width, height) {
+        this.ctx.translate(-this.zp.x, -this.zp.y);
+        this.canvas.width = width;
+        this.canvas.height = height;
+        this.ctx.translate(this.zp.x, this.zp.y);
+
+        grid.redraw();
+    }
+
+    public update(conf) {
+        this.scale = conf.scale || this.scale;
+        this.ctx = this.canvas.getContext('2d');
+        this.cellSize = Math.round(this.scale * 5);
+        this.wCells = conf.ratio[0];
+        this.hCells = conf.ratio[1];
+        this.cells = new Array(this.wCells * this.hCells);
+
+        this.clearGrid();
+        this.ctx.translate(-this.zp.x, -this.zp.y);
+        this.zp.x = 0;
+        this.zp.y = 0;
+        this.redraw();
+    }
+
+    public destroy() {
+        this.clearGrid();
+        this.cells.length = 0;
+        this.ctx.translate(-this.zp.x, -this.zp.y);
+
+
+        for (let e in this.events) {
+            this.canvas.removeEventListener(e, this.events[e]);
+        }
     }
 
     // event hendlers
@@ -235,7 +270,6 @@ class Grid {
             } else {
                 this.move(e.movementX, e.movementY);
             }
-
         }
     }
 
@@ -246,32 +280,6 @@ class Grid {
         };
         this.zoom(pt, e.wheelDelta > 0);
     }
-
-    public update(conf) {
-        this.scale    = conf.scale || this.scale;
-        this.cellSize = Math.round(this.scale * 5);
-        this.wCells   = conf.ratio[0];
-        this.hCells   = conf.ratio[1];
-        this.cells    = new Array(this.wCells * this.hCells);
-
-        this.clearGrid();
-        this.ctx.translate(-this.zp.x, -this.zp.y);
-        this.zp.x = 0;
-        this.zp.y = 0;
-        this.redraw();
-    }
-
-    public destroy() {
-        this.clearGrid();
-        this.cells.length = 0;
-        this.ctx.translate(-this.zp.x, -this.zp.y);
-
-
-        for (let e in this.events) {
-            this.canvas.removeEventListener(e, this.events[e]);
-        }
-    }
-
 }
 
 
@@ -280,6 +288,10 @@ var $colorpicker = <HTMLInputElement>document.querySelector("#colorpicker");
 var $btns        = <any>document.querySelectorAll(".actions button");
 var $config      = <any>document.querySelectorAll(".config input");
 var $resetBtn    = <any>document.querySelector("#reset");
+
+
+$canvas.width = window.innerWidth;
+$canvas.height = window.innerHeight;
 
 var grid = new Grid({
     canvas: $canvas,
@@ -340,6 +352,13 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+var resizedFinished;
+window.addEventListener('resize', (e) => {
+    clearTimeout(resizedFinished);
+    resizedFinished = setTimeout(function() {
+        grid.resize(window.innerWidth, window.innerHeight);
+    }, 250);
+})
 
 function handleClickActionsBtn (e) {
     grid.mode = e.currentTarget.id;
