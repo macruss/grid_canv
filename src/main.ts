@@ -39,18 +39,17 @@
 
             this.draw();
         }
-        public draw(): void {
-            var ctx = grid.ctx,
-                size = grid.cellSize,
+        public draw(ctx = this.grid.ctx): void {
+            var size = grid.cellSize,
                 x = toPixel(this.x, size) + 1,
                 y = toPixel(this.y, size) + 1;
 
             ctx.fillStyle = this.color;
             ctx.fillRect(x, y, size - 1, size - 1);
         }
-        public setColor(color: string) {
+        public setColor(color: string, ctx = this.grid.ctx) {
             this.color = color;
-            this.draw();
+            this.draw(ctx);
         }
     }
 
@@ -65,6 +64,8 @@
         private hCells: number;
         private cells: Array<any>;
         private canvas: HTMLCanvasElement;
+        private hiddenCanvas: HTMLCanvasElement;
+        private hiddenCtx: any;
         private scale: number;
         private zp: { x: number, y: number };
         private moveStart: any;
@@ -75,13 +76,17 @@
 
 
         constructor(conf: GridConfig) {
-            this.canvas = conf.canvas;
+            // this.ctx.canvas = conf.canvas;
             this.ctx = conf.canvas.getContext('2d');
+            this.zp = new Point(0, 0);
+            this.ctx.canvas.zp = this.zp; // zero point - begin of ctx
             this.scale = conf.scale;
             this.cellSize = Math.round(this.scale * 5);
             this.wCells = conf.ratio[0];
             this.hCells = conf.ratio[1];
-            this.zp = new Point(0, 0);   // zero point - begin of ctx
+            this.hiddenCanvas = document.createElement('canvas');
+            this.hiddenCanvas.width = toPixel(this.wCells, this.cellSize) + 1,
+            this.hiddenCanvas.height = toPixel(this.hCells, this.cellSize) + 1;
             this.mode = 'draw';
             this.cells = new Array(this.wCells * this.hCells);
             this.events = {
@@ -95,23 +100,58 @@
 
             // setup events
             for (let e in this.events) {
-                this.canvas.addEventListener(e, this.events[e]);
+                this.ctx.canvas.addEventListener(e, this.events[e]);
             }
+        }
+
+        private drawHiddenGrid(): void {
+            var size = this.cellSize,
+                hctx = this.hiddenCanvas.getContext('2d'),
+                gridWidth = this.hiddenCanvas.width,
+                gridHeight = this.hiddenCanvas.height,
+                end = new Point( gridWidth, gridHeight ).toRelativeUnit(size);
+
+            hctx.beginPath();
+
+            for (let x = 0.5; x <= gridWidth + 1; x += size) {
+                hctx.moveTo(x, 0);
+                hctx.lineTo(x, gridHeight);
+            }
+
+            for (let y = 0.5; y <= gridHeight + 1; y += size) {
+                hctx.moveTo(0, y);
+                hctx.lineTo(gridWidth, y);
+            }
+
+            hctx.strokeStyle = 'lightgray';
+            hctx.stroke();
+
+            for (let x = 0; x <= end.x; x++) {
+                for (let y = 0; y <= end.y; y++) {
+                    let cell = this.cells[x + this.wCells * y];
+
+                    if (cell) cell.draw(hctx);
+                }
+            }
+
+
         }
 
         private draw(): void {
             var size = this.cellSize,
                 gridWidth = toPixel(this.wCells, size),
                 gridHeight = toPixel(this.hCells, size),
-                zp = this.zp,
+                // zp = this.zp,
                 ctx = this.ctx,
+                canvas = ctx.canvas,
+                zp = this.zp,
                 begin = new Point(
                     Math.max(0, zp.x % size - zp.x - size),
                     Math.max(0, zp.y % size - zp.y - size)
                 ),
                 end = new Point(
-                    Math.min(this.canvas.width - zp.x, gridWidth),
-                    Math.min(this.canvas.height - zp.y, gridHeight)
+                    Math.min(canvas.width - zp.x, gridWidth),
+                    Math.min(canvas.height - zp.y, gridHeight)
                 ),
                 _begin = begin.toRelativeUnit(size),
                 _end = end.toRelativeUnit(size);
@@ -171,6 +211,10 @@
                 );
             }
 
+            this.hiddenCanvas.width = toPixel(this.wCells, this.cellSize) + 1,
+            this.hiddenCanvas.height = toPixel(this.hCells, this.cellSize) + 1;
+            this.drawHiddenGrid();
+
             $config[2].value = this.scale;
         }
 
@@ -187,8 +231,10 @@
         }
 
         private clearGrid() {
-            let begin = new Point(0 - this.zp.x, 0 - this.zp.y),
-                end = new Point(this.canvas.width, this.canvas.height);
+            let canvas = this.ctx.canvas,
+                zp = this.zp,
+                begin = new Point(0 - zp.x, 0 - zp.y),
+                end = new Point(canvas.width, canvas.height);
 
             this.ctx.clearRect(begin.x, begin.y, end.x, end.y);
         }
@@ -206,17 +252,19 @@
         }
 
         public resize(width, height) {
-            this.ctx.translate(-this.zp.x, -this.zp.y);
-            this.canvas.width = width;
-            this.canvas.height = height;
-            this.ctx.translate(this.zp.x, this.zp.y);
+            let zp = this.zp;
 
-            grid.redraw();
+            this.ctx.translate(-zp.x, -zp.y);
+            this.ctx.canvas.width = width;
+            this.ctx.canvas.height = height;
+            this.ctx.translate(zp.x, zp.y);
+            this.redraw();
         }
 
         public update(conf) {
+            let zp = this.ctx.canvas.zp;
+
             this.scale = conf.scale || this.scale;
-            this.ctx = this.canvas.getContext('2d');
             this.cellSize = Math.round(this.scale * 5);
             this.wCells = conf.ratio[0];
             this.hCells = conf.ratio[1];
@@ -226,6 +274,9 @@
             this.ctx.translate(-this.zp.x, -this.zp.y);
             this.zp.x = 0;
             this.zp.y = 0;
+            this.hiddenCanvas.width = toPixel(this.wCells, this.cellSize) + 1,
+            this.hiddenCanvas.height = toPixel(this.hCells, this.cellSize) + 1;
+            this.drawHiddenGrid();
             this.redraw();
         }
 
@@ -236,7 +287,7 @@
 
 
             for (let e in this.events) {
-                this.canvas.removeEventListener(e, this.events[e]);
+                // this.ctx.canvas.removeEventListener(e, this.events[e]);
             }
         }
 
@@ -258,14 +309,18 @@
 
         private handleMouseDown(e) {
             if (this.mode === 'move') {
+                this.drawHiddenGrid();
                 let moveStart = this.moveStart = { x: e.offsetX, y: e.offsetY };
-
                 let move = () => {
                     if (this.moveStart) {
                         requestAnimationFrame(move);
                     }
-                    if ( moveStart.x !== this.moveStart.x &&
-                         moveStart.y !== this.moveStart.y ) this.redraw();
+                    if ( this.moveStart &&
+                         moveStart.x !== this.moveStart.x &&
+                        moveStart.y !== this.moveStart.y) {
+                        this.clearGrid();
+                        this.ctx.drawImage(this.hiddenCanvas, 0, 0); //this.redraw();
+                    }
                     moveStart = this.moveStart;
                 }
                 move();
@@ -285,8 +340,8 @@
 
                     this.zp.x += p.x;
                     this.zp.y += p.y;
-
                     this.ctx.translate(p.x, p.y);
+
                     this.moveStart = { x: e.offsetX, y: e.offsetY };
                 }
             }
