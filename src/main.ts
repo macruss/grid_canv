@@ -264,7 +264,8 @@
                     if (this.moveStart) {
                         requestAnimationFrame(move);
                     }
-                    if ( moveStart.x !== this.moveStart.x &&
+                    if ( this.moveStart && 
+                         moveStart.x !== this.moveStart.x &&
                          moveStart.y !== this.moveStart.y ) this.redraw();
                     moveStart = this.moveStart;
                 }
