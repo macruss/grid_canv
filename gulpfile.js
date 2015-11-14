@@ -14,7 +14,7 @@ gulp.task('webserver', function() {
 });
 
 gulp.task('compile', function(){
-  gulp.src(['./src/*.ts'])
+  gulp.src(['./src/*.ts', './src/**/*.ts'])
     .pipe(tsc())
     .pipe(gulp.dest('./dist/'));
 });
