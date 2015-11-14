@@ -40,10 +40,10 @@
             this.draw();
         }
         public draw(): void {
-            var ctx = grid.ctx,
-                size = grid.cellSize,
-                x = toPixel(this.x, size) + 1,
-                y = toPixel(this.y, size) + 1;
+            var ctx  = this.grid.ctx,
+                size = this.grid.cellSize,
+                x    = toPixel(this.x, size) + 1,
+                y    = toPixel(this.y, size) + 1;
 
             ctx.fillStyle = this.color;
             ctx.fillRect(x, y, size - 1, size - 1);
@@ -73,7 +73,6 @@
         public cellSize: number;
         public mode: string;
 
-
         constructor(conf: GridConfig) {
             this.canvas = conf.canvas;
             this.ctx = conf.canvas.getContext('2d');
@@ -85,10 +84,11 @@
             this.mode = 'draw';
             this.cells = new Array(this.wCells * this.hCells);
             this.events = {
-                mouseup: (e) => this.handleMouseUp(e),
-                mousedown: (e) => this.handleMouseDown(e),
-                mousemove: (e) => this.handleMouseMove(e),
-                mousewheel: (e) => this.handleScroll(e)
+                mouseup    : (e) => this.handleMouseUp(e),
+                mousedown  : (e) => this.handleMouseDown(e),
+                mousemove  : (e) => this.handleMouseMove(e),
+                mousewheel : (e) => this.handleScroll(e),
+                wheel      : (e) => this.handleScroll(e),
             }
 
             this.draw();
@@ -98,24 +98,22 @@
                 this.canvas.addEventListener(e, this.events[e]);
             }
         }
-
         private draw(): void {
-            var size = this.cellSize,
-                gridWidth = toPixel(this.wCells, size),
+            let size       = this.cellSize,
+                gridWidth  = toPixel(this.wCells, size),
                 gridHeight = toPixel(this.hCells, size),
-                zp = this.zp,
-                ctx = this.ctx,
-                begin = new Point(
+                zp         = this.zp,
+                ctx        = this.ctx,
+                begin      = new Point(
                     Math.max(0, zp.x % size - zp.x - size),
                     Math.max(0, zp.y % size - zp.y - size)
                 ),
-                end = new Point(
+                end        = new Point(
                     Math.min(this.canvas.width - zp.x, gridWidth),
                     Math.min(this.canvas.height - zp.y, gridHeight)
                 ),
-                _begin = begin.toRelativeUnit(size),
-                _end = end.toRelativeUnit(size);
-
+                _begin     = begin.toRelativeUnit(size),
+                _end       = end.toRelativeUnit(size);
 
             ctx.beginPath();
 
@@ -141,11 +139,11 @@
             }
         }
 
-        private setCell(x, y, color) {
-            var i = x + this.wCells * y;
+        private setCell(pt, color) {
+            let i = pt.x + this.wCells * pt.y;
 
             if (!this.cells[i]) {
-                this.cells[i] = new Cell(x, y, color, this);
+                this.cells[i] = new Cell(pt.x, pt.y, color, this);
             } else {
                 this.cells[i].setColor(color)
             }
@@ -156,10 +154,10 @@
         }
 
         public zoom(pt, zoomDirection: boolean) {
-            let delta = zoomDirection ? 1.25 : .8;
-            let oldSize = this.cellSize;
+            let delta     = zoomDirection ? 1.25 : .8;
+            let oldSize   = this.cellSize;
 
-            this.scale = +Math.max(1, this.scale * delta).toFixed(1);
+            this.scale    = +Math.max(1, this.scale * delta).toFixed(1);
             this.cellSize = Math.round(this.scale * 5);
 
             if (this.scale >= 1) {
@@ -177,7 +175,6 @@
         public moveTo(x, y) {
             this.zp.x += x;
             this.zp.y += y;
-            this.clearGrid();
             this.ctx.translate(x, y);
             this.redraw();
         }
@@ -188,7 +185,7 @@
 
         private clearGrid() {
             let begin = new Point(0 - this.zp.x, 0 - this.zp.y),
-                end = new Point(this.canvas.width, this.canvas.height);
+                end   = new Point(this.canvas.width, this.canvas.height);
 
             this.ctx.clearRect(begin.x, begin.y, end.x, end.y);
         }
@@ -198,11 +195,11 @@
             this.draw();
         }
 
-        private inGrid(x, y): boolean {
-            return x >= 0 &&
-                x < this.wCells &&
-                y >= 0 &&
-                y < this.hCells
+        private inGrid(pt): boolean {
+            return pt.x >= 0 &&
+                   pt.x < this.wCells &&
+                   pt.y >= 0 &&
+                   pt.y < this.hCells
         }
 
         public resize(width, height) {
@@ -211,7 +208,7 @@
             this.canvas.height = height;
             this.ctx.translate(this.zp.x, this.zp.y);
 
-            grid.redraw();
+            this.redraw();
         }
 
         public update(conf) {
@@ -243,62 +240,45 @@
         // event hendlers
         private handleMouseUp(e) {
             if (this.mode === 'draw') {
-                let x = toRelativeUnit(e.offsetX - this.zp.x, this.cellSize),
-                    y = toRelativeUnit(e.offsetY - this.zp.y, this.cellSize);
+                let pt = new Point(
+                    e.clientX - this.zp.x,
+                    e.clientY - this.zp.y
+                ).toRelativeUnit(this.cellSize);
 
-                if (this.inGrid(x, y)) {
-                    this.setCell(x, y, $colorpicker.value);
+                if (this.inGrid(pt)) {
+                    this.setCell(pt, $colorpicker.value);
                 }
-            } else {
-                this.moveStart = null;
             }
-
-            return e.preventDefault() && false;
+            this.moveStart = null;
         }
 
         private handleMouseDown(e) {
-            if (this.mode === 'move') {
-                let moveStart = this.moveStart = { x: e.offsetX, y: e.offsetY };
-
-                let move = () => {
-                    if (this.moveStart) {
-                        requestAnimationFrame(move);
-                    }
-                    if ( this.moveStart && 
-                         moveStart.x !== this.moveStart.x &&
-                         moveStart.y !== this.moveStart.y ) this.redraw();
-                    moveStart = this.moveStart;
-                }
-                move();
-            }
+            this.moveStart = { x: e.clientX, y: e.clientY };
         }
-
         private handleMouseMove(e) {
-            if (e.which === 1) {
+            if (this.moveStart) {
+                let pt = new Point(
+                    e.clientX - this.zp.x,
+                    e.clientY - this.zp.y
+                ).toRelativeUnit(this.cellSize);
+
                 if (this.mode === 'draw') {
-                    this.handleMouseUp(e);
-                } else {
-
-                    let p = {
-                        x: e.offsetX - this.moveStart.x,
-                        y: e.offsetY - this.moveStart.y
-                    };
-
-                    this.zp.x += p.x;
-                    this.zp.y += p.y;
-
-                    this.ctx.translate(p.x, p.y);
-                    this.moveStart = { x: e.offsetX, y: e.offsetY };
+                    this.setCell(pt, $colorpicker.value);
+                } else if (this.mode === 'move') {
+                    this.moveTo(
+                        e.clientX - this.moveStart.x,
+                        e.clientY - this.moveStart.y
+                    );
+                    this.moveStart = { x: e.clientX, y: e.clientY };
                 }
             }
         }
-
         private handleScroll(e) {
             var pt = {
-                x: e.offsetX,
-                y: e.offsetY,
+                x: e.clientX,
+                y: e.clientY,
             };
-            this.zoom(pt, e.wheelDelta > 0);
+            this.zoom(pt, e.deltaY < 0);
         }
     }
 
