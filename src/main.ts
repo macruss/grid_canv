@@ -61,34 +61,40 @@
         ratio: Array<number>
     }
     class Grid {
-        private wCells: number;
-        private hCells: number;
-        private cells: Array<any>;
-        private canvas: HTMLCanvasElement;
-        private scale: number;
-        private zp: { x: number, y: number };
-        private moveStart: any;
-        private events: any;
-        public ctx: any;
-        public cellSize: number;
-        public mode: string;
+        private wCells    : number;
+        private hCells    : number;
+        private cells     : Array<any>;
+        private canvas    : HTMLCanvasElement;
+        private scale     : number;
+        private dist      : number;
+        private zp        : { x: number, y: number };
+        private moveStart : any;
+        private events    : any;
+        public ctx        : any;
+        public cellSize   : number;
+        public mode       : string;
 
         constructor(conf: GridConfig) {
-            this.canvas = conf.canvas;
-            this.ctx = conf.canvas.getContext('2d');
-            this.scale = conf.scale;
+            this.canvas   = conf.canvas;
+            this.ctx      = conf.canvas.getContext('2d');
+            this.scale    = conf.scale;
+            this.dist     = null;
             this.cellSize = Math.round(this.scale * 5);
-            this.wCells = conf.ratio[0];
-            this.hCells = conf.ratio[1];
-            this.zp = new Point(0, 0);   // zero point - begin of ctx
-            this.mode = 'draw';
-            this.cells = new Array(this.wCells * this.hCells);
-            this.events = {
+            this.wCells   = conf.ratio[0];
+            this.hCells   = conf.ratio[1];
+            this.zp       = new Point(0, 0);   // zero point - begin of ctx
+            this.mode     = 'draw';
+            this.cells    = new Array(this.wCells * this.hCells);
+            this.events   = {
                 mouseup    : (e) => this.handleMouseUp(e),
                 mousedown  : (e) => this.handleMouseDown(e),
                 mousemove  : (e) => this.handleMouseMove(e),
-                mousewheel : (e) => this.handleScroll(e),
-                wheel      : (e) => this.handleScroll(e),
+                touchstart : (e) => this.handleTouchStart(e),
+                touchend   : (e) => this.handleTouchEnd(e),
+                touchmove  : (e) => this.handleTouchMove(e),
+                mousewheel : (e) => this.handleZoom(e),
+                wheel      : (e) => this.handleZoom(e),
+                scroll     : (e) => this.handleZoom(e),
             }
 
             this.draw();
@@ -153,48 +159,42 @@
             return this.cells[x + this.wCells * y];
         }
 
-        public zoom(pt, zoomDirection: boolean) {
-            let delta     = zoomDirection ? 1.25 : .8;
+        public zoom(focus, factor: number) {
             let oldSize   = this.cellSize;
 
-            this.scale    = +Math.max(1, this.scale * delta).toFixed(1);
+            this.scale    = +Math.max(1, this.scale * factor).toFixed(1);
             this.cellSize = Math.round(this.scale * 5);
 
             if (this.scale >= 1) {
                 let k = 1 - this.cellSize / oldSize;
 
                 this.moveTo(
-                    Math.round((pt.x - this.zp.x) * k),
-                    Math.round((pt.y - this.zp.y) * k)
+                    Math.round((focus.x - this.zp.x) * k),
+                    Math.round((focus.y - this.zp.y) * k)
                 );
             }
 
-            $config[2].value = this.scale;
+            // $config[2].value = this.scale;
         }
-
         public moveTo(x, y) {
             this.zp.x += x;
             this.zp.y += y;
             this.ctx.translate(x, y);
             this.redraw();
         }
-
         public getScale() {
             return this.scale;
         }
-
         private clearGrid() {
             let begin = new Point(0 - this.zp.x, 0 - this.zp.y),
                 end   = new Point(this.canvas.width, this.canvas.height);
 
             this.ctx.clearRect(begin.x, begin.y, end.x, end.y);
         }
-
         public redraw() {
             this.clearGrid();
             this.draw();
         }
-
         private inGrid(pt): boolean {
             return pt.x >= 0 &&
                    pt.x < this.wCells &&
@@ -210,7 +210,6 @@
 
             this.redraw();
         }
-
         public update(conf) {
             this.scale = conf.scale || this.scale;
             this.ctx = this.canvas.getContext('2d');
@@ -225,7 +224,6 @@
             this.zp.y = 0;
             this.redraw();
         }
-
         public destroy() {
             this.clearGrid();
             this.cells.length = 0;
@@ -236,9 +234,9 @@
                 this.canvas.removeEventListener(e, this.events[e]);
             }
         }
-
         // event hendlers
         private handleMouseUp(e) {
+            e.preventDefault();
             if (this.mode === 'draw') {
                 let pt = new Point(
                     e.clientX - this.zp.x,
@@ -246,16 +244,17 @@
                 ).toRelativeUnit(this.cellSize);
 
                 if (this.inGrid(pt)) {
-                    this.setCell(pt, $colorpicker.value);
+                    this.setCell(pt, $colorpicker && $colorpicker.value || 'black');
                 }
             }
             this.moveStart = null;
         }
-
         private handleMouseDown(e) {
-            this.moveStart = { x: e.clientX, y: e.clientY };
+            e.preventDefault();
+            this.moveStart = new Point( e.clientX, e.clientY );
         }
         private handleMouseMove(e) {
+            e.preventDefault();
             if (this.moveStart) {
                 let pt = new Point(
                     e.clientX - this.zp.x,
@@ -263,8 +262,9 @@
                 ).toRelativeUnit(this.cellSize);
 
                 if (this.mode === 'draw') {
-                    this.setCell(pt, $colorpicker.value);
+                    this.setCell(pt, $colorpicker && $colorpicker.value || 'black');
                 } else if (this.mode === 'move') {
+
                     this.moveTo(
                         e.clientX - this.moveStart.x,
                         e.clientY - this.moveStart.y
@@ -273,12 +273,82 @@
                 }
             }
         }
-        private handleScroll(e) {
-            var pt = {
+        private handleTouchStart(e) {
+            let touch = e.touches && e.touches.length == 1 ?
+                e.touches[0] : null;
+            if (touch) {
+                let touchPoint = new Point(touch.clientX, touch.clientY)
+                this.moveStart = touchPoint;
+                this.setCell(touchPoint, $colorpicker && $colorpicker.value || 'black');
+            }
+
+            if (e.touches.length == 2) {
+                let t1 = new Point(e.touches[0].clientX, e.touches[0].clientY),
+                    t2 = new Point(e.touches[1].clientX, e.touches[1].clientY);
+
+                this.dist = Grid.getDistance(t1, t2);
+            }
+        }
+        private handleTouchEnd(e) {
+            if (this.dist) {
+                this.dist = null;
+            }
+            this.moveStart = null;
+        }
+        private handleTouchMove(e) {
+            e.preventDefault();
+            let touch = e.touches && e.touches.length == 1 ?
+                e.touches[0] : null;
+
+            if (touch) {
+                let pt = new Point(
+                    touch.clientX - this.zp.x,
+                    touch.clientY - this.zp.y
+                ).toRelativeUnit(this.cellSize);
+
+                if (this.mode === 'draw') {
+                    this.setCell(pt, $colorpicker && $colorpicker.value || 'black');
+                } else if (this.mode === 'move' && this.moveStart) {
+                    this.moveTo(
+                        touch.clientX - this.moveStart.x,
+                        touch.clientY - this.moveStart.y
+                    );
+                    this.moveStart = { x: touch.clientX, y: touch.clientY };
+                }
+            }
+
+            if (e.touches.length == 2) {
+                let t1      = new Point(e.touches[0].clientX, e.touches[0].clientY),
+                    t2      = new Point(e.touches[1].clientX, e.touches[1].clientY),
+                    newDist = Grid.getDistance(t1, t2),
+                    factor  = +(newDist / this.dist).toFixed(1),
+                    focus   = Grid.getMidpoint(t1, t2);
+
+                this.zoom(focus, factor);
+
+                this.dist = newDist;
+            }
+
+        }
+        private handleZoom(e) {
+            let factor = e.deltaY < 0 ? 1.25 : .8;
+            let pt = {
                 x: e.clientX,
                 y: e.clientY,
             };
-            this.zoom(pt, e.deltaY < 0);
+            this.zoom(pt, factor);
+        }
+        static getDistance(p1, p2) {
+            return +Math.sqrt(
+                Math.pow(p1.x - p2.x, 2) +
+                Math.pow(p1.y - p2.y, 2)
+            ).toFixed();
+        }
+        static getMidpoint(p1, p2) {
+            return new Point(
+                (p1.x - p2.x) / 2,
+                (p1.y - p2.y) / 2
+            );
         }
     }
 
@@ -287,7 +357,7 @@
     var $colorpicker = <HTMLInputElement>document.querySelector("#colorpicker");
     var $btns = <any>document.querySelectorAll(".actions button");
     var $config = <any>document.querySelectorAll(".config input");
-    var $resetBtn = <any>document.querySelector("#reset");
+    // var $resetBtn = <any>document.querySelector("#reset");
 
 
     $canvas.width = window.innerWidth;
@@ -295,26 +365,23 @@
 
     var grid = new Grid({
         canvas: $canvas,
-        ratio: [
-            +$config[0].value,
-            +$config[1].value
-        ],
-        scale: +$config[2].value,
+        ratio: [ 500, 500 ],
+        scale: 2,
     });
 
     Array.prototype.forEach.call($btns, el => {
         el.addEventListener('click', handleClickActionsBtn)
     });
 
-    $resetBtn.addEventListener('click', (e) => {
-        grid.update({
-            ratio: [
-                +$config[0].value,
-                +$config[1].value
-            ],
-            scale: +$config[2].value
-        })
-    })
+    // $resetBtn.addEventListener('click', (e) => {
+    //     grid.update({
+    //         ratio: [
+    //             +$config[0].value,
+    //             +$config[1].value
+    //         ],
+    //         scale: +$config[2].value
+    //     })
+    // })
 
 
 
