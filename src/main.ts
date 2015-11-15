@@ -261,7 +261,7 @@
                     e.clientY - this.zp.y
                 ).toRelativeUnit(this.cellSize);
 
-                if (this.mode === 'draw') {
+                if (this.mode === 'draw' && this.inGrid(pt)) {
                     this.setCell(pt, $colorpicker && $colorpicker.value || 'black');
                 } else if (this.mode === 'move') {
 
@@ -279,7 +279,9 @@
             if (touch) {
                 let touchPoint = new Point(touch.clientX, touch.clientY)
                 this.moveStart = touchPoint;
-                this.setCell(touchPoint, $colorpicker && $colorpicker.value || 'black');
+                if (this.inGrid(touchPoint)) {
+                    this.setCell(touchPoint, $colorpicker && $colorpicker.value || 'black');
+                }
             }
 
             if (e.touches.length == 2) {
@@ -306,7 +308,7 @@
                     touch.clientY - this.zp.y
                 ).toRelativeUnit(this.cellSize);
 
-                if (this.mode === 'draw') {
+                if (this.mode === 'draw' && this.inGrid(pt)) {
                     this.setCell(pt, $colorpicker && $colorpicker.value || 'black');
                 } else if (this.mode === 'move' && this.moveStart) {
                     this.moveTo(

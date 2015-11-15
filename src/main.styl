@@ -1,3 +1,9 @@
+// pixel-ratio(n)
+//   (min--moz-device-pixel-ratio: n), 
+//   (-o-min-device-pixel-ratio: n/1), 
+//   (-webkit-min-device-pixel-ratio: n), 
+//   (min-device-pixel-ratio: n)
+
 body
   margin 0
   padding 0
@@ -7,15 +13,23 @@ body
     display block
     // cursor default
     cursor default
-.left-block
+.right-block
   position absolute
   right 0px
+  @media 
+  (-webkit-min-device-pixel-ratio: 2), 
+  (min-resolution: 192dpi)
+    bottom 40px
   .controls
   .config
     vertical-align top
     width 60px
     margin 40px 40px 0 0
     z-index 10
+    @media 
+    (-webkit-min-device-pixel-ratio: 2), 
+    (min-resolution: 192dpi)
+      width 180px
     .input-group
       margin-bottom 10px
     .colorpicker
@@ -31,6 +45,13 @@ body
         // border 1px solid #aaa
         font-size 2em
         outline none
+      @media 
+      (-webkit-min-device-pixel-ratio: 2), 
+      (min-resolution: 192dpi)
+        button
+          width 180px
+          height 180px
+          font-size 5em
         &:first-child
           border-bottom 0px
         &:last-child
@@ -38,3 +59,4 @@ body
       .selected
         color #ccc
         background #333
+
