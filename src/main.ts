@@ -251,7 +251,20 @@
         }
         private handleMouseDown(e) {
             e.preventDefault();
-            this.moveStart = new Point( e.clientX, e.clientY );
+            this.moveStart = { x: e.clientX, y: e.clientY };
+            let moveEnd = { x: e.clientX, y: e.clientY };
+            let move = () => {
+                if (this.moveStart) {
+                    let deltaX = this.moveStart.x - moveEnd.x,
+                        deltaY = this.moveStart.y - moveEnd.y;
+
+                    if ( deltaX || deltaY) this.moveTo( deltaX, deltaY );
+
+                    moveEnd = { x: this.moveStart.x, y: this.moveStart.y };
+                    requestAnimationFrame(move);
+                }
+            }
+            move();
         }
         private handleMouseMove(e) {
             e.preventDefault();
@@ -264,11 +277,6 @@
                 if (this.mode === 'draw' && this.inGrid(pt)) {
                     this.setCell(pt, $colorpicker && $colorpicker.value || 'black');
                 } else if (this.mode === 'move') {
-
-                    this.moveTo(
-                        e.clientX - this.moveStart.x,
-                        e.clientY - this.moveStart.y
-                    );
                     this.moveStart = { x: e.clientX, y: e.clientY };
                 }
             }
@@ -276,12 +284,28 @@
         private handleTouchStart(e) {
             let touch = e.touches && e.touches.length == 1 ?
                 e.touches[0] : null;
+                
             if (touch) {
                 let touchPoint = new Point(touch.clientX, touch.clientY)
                 this.moveStart = touchPoint;
                 if (this.inGrid(touchPoint)) {
                     this.setCell(touchPoint, $colorpicker && $colorpicker.value || 'black');
                 }
+            }
+            if (this.mode === 'move') {
+                let moveEnd = { x: touch.clientX, y: touch.clientY };
+                let move = () => {
+                    if (this.moveStart) {
+                        let deltaX = this.moveStart.x - moveEnd.x,
+                            deltaY = this.moveStart.y - moveEnd.y;
+
+                        if (deltaX || deltaY) this.moveTo(deltaX, deltaY);
+
+                        moveEnd = { x: this.moveStart.x, y: this.moveStart.y };
+                        requestAnimationFrame(move);
+                    }
+                }
+                move();
             }
 
             if (e.touches.length == 2) {
@@ -311,10 +335,6 @@
                 if (this.mode === 'draw' && this.inGrid(pt)) {
                     this.setCell(pt, $colorpicker && $colorpicker.value || 'black');
                 } else if (this.mode === 'move' && this.moveStart) {
-                    this.moveTo(
-                        touch.clientX - this.moveStart.x,
-                        touch.clientY - this.moveStart.y
-                    );
                     this.moveStart = { x: touch.clientX, y: touch.clientY };
                 }
             }
@@ -368,7 +388,7 @@
     var grid = new Grid({
         canvas: $canvas,
         ratio: [ 500, 500 ],
-        scale: 2,
+        scale: 3,
     });
 
     Array.prototype.forEach.call($btns, el => {
