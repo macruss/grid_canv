@@ -121,6 +121,8 @@ class Grid {
             _begin     = begin.toRelativeUnit(size),
             _end       = end.toRelativeUnit(size);
 
+        ctx.strokeStyle = 'lightgray';
+        ctx.lineWidth = 1;
         ctx.beginPath();
 
         for (let x = begin.x + 0.5; x <= end.x + 1; x += size) {
@@ -132,13 +134,29 @@ class Grid {
             ctx.moveTo(0, y);
             ctx.lineTo(end.x, y);
         }
-
-        ctx.strokeStyle = 'lightgray';
         ctx.stroke();
 
-        for (let x = _begin.x; x <= _end.x; x++) {
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        for (let x = begin.x; x <= end.x + 1; x += size) {
+            if (!(x % (10 * size))) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, end.y);
+            }
+        }
+
+        for (let y = begin.y; y <= end.y + 1; y += size) {
+            if (!(y % (10 * size))) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(end.x, y);
+            }
+        }
+        ctx.stroke();
+
+        for (let x = _begin.x, cell; x <= _end.x; x++) {
             for (let y = _begin.y; y <= _end.y; y++) {
-                let cell = this.cells[x + this.wCells * y];
+                cell = this.cells[x + this.wCells * y];
 
                 if (cell) cell.draw();
             }
